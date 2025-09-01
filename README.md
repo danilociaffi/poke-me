@@ -2,15 +2,6 @@
 
 A service that allows you to schedule recurring system notifications using cron expressions. 
 
-## Features
-
-- ⏰ **Cron-based scheduling** with 6-field format (seconds, minutes, hours, day, month, weekday)
-- 🔔 **Desktop notifications** using your system's notification system
-- 💾 **SQLite database** for persistent job storage
-- 🚀 **Background service** mode for continuous operation
-- 📝 **Simple CLI** for managing scheduled jobs
-- 🔍 **Search functionality** to find jobs by name patterns
-
 ## Installation
 
 ### Prerequisites
