@@ -9,11 +9,17 @@ pub struct Poke {
     pub name: String,
     pub cron: String,
     pub detail: Option<String>,
+    pub sound_enabled: bool,
     pub created: NaiveDateTime,
 }
 
 impl Poke {
-    pub fn new<T: Into<String>>(name: T, cron: T, detail: Option<T>) -> Result<Self, String> {
+    pub fn new<T: Into<String>>(
+        name: T,
+        cron: T,
+        detail: Option<T>,
+        sound_enabled: bool,
+    ) -> Result<Self, String> {
         let cron_str = cron.into();
         let name_str = name.into();
 
@@ -27,6 +33,7 @@ impl Poke {
             name: name_str,
             cron: cron_str,
             detail: detail.map(|d| d.into()),
+            sound_enabled,
             created: Utc::now().naive_local(),
         })
     }

@@ -1,5 +1,8 @@
 use crate::{
-    database::{add_poke, get_poke_by_name, list_pokes, remove_poke, search_pokes_by_name},
+    database::{
+        add_poke, get_poke_by_name, list_pokes, remove_poke, search_pokes_by_name,
+        toggle_poke_sound,
+    },
     display::{display_job_detail, display_jobs},
     service::stop_service,
 };
@@ -32,6 +35,9 @@ pub enum Commands {
         cron: String,
         /// Optional description or message for the notification
         detail: Option<String>,
+        /// Disable notification sound for this job (sound is OFF by default)
+        #[arg(long, default_value = "false")]
+        sound: bool,
     },
     /// List all scheduled notification jobs
     List {
@@ -54,6 +60,11 @@ pub enum Commands {
         /// Name of the job to remove
         name: String,
     },
+    /// Toggle sound on/off for an existing job
+    ToggleSound {
+        /// Name of the job to toggle sound for
+        name: String,
+    },
     /// Stop the running notification service
     Stop,
 }
@@ -63,9 +74,15 @@ pub async fn handle_commands(
     pool: &sqlx::SqlitePool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match command {
-        Commands::Add { name, cron, detail } => {
+        Commands::Add {
+            name,
+            cron,
+            detail,
+            sound,
+        } => {
             let sched = tokio_cron_scheduler::JobScheduler::new().await?;
-            match add_poke(pool, name, cron, detail, &sched).await {
+            let sound_enabled = sound;
+            match add_poke(pool, name, cron, detail, sound_enabled, &sched).await {
                 Ok(()) => println!("Job added successfully"),
                 Err(err) => println!("ERROR: {}", err),
             }
@@ -95,6 +112,13 @@ pub async fn handle_commands(
         },
         Commands::Remove { name } => match remove_poke(pool, &name).await {
             Ok(()) => println!("Job '{}' removed successfully", name),
+            Err(err) => println!("ERROR: {}", err),
+        },
+        Commands::ToggleSound { name } => match toggle_poke_sound(pool, &name).await {
+            Ok(sound_enabled) => {
+                let status = if sound_enabled { "ON" } else { "OFF" };
+                println!("Sound toggled to {} for job '{}'", status, name);
+            }
             Err(err) => println!("ERROR: {}", err),
         },
         Commands::Stop => match stop_service() {

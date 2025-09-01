@@ -33,6 +33,7 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
             name TEXT NOT NULL UNIQUE,
             cron TEXT NOT NULL,
             detail TEXT,
+            sound_enabled BOOLEAN NOT NULL DEFAULT 0,
             created TIMESTAMP NOT NULL
         )
         "#,
@@ -48,12 +49,13 @@ pub async fn add_poke<T>(
     name: T,
     cron: T,
     detail: Option<T>,
+    sound_enabled: bool,
     sched: &JobScheduler,
 ) -> Result<(), Box<dyn std::error::Error>>
 where
     T: Into<String>,
 {
-    let poke = Poke::new(name, cron, detail)?;
+    let poke = Poke::new(name, cron, detail, sound_enabled)?;
 
     // Start a transaction
     let mut tx = pool.begin().await?;
@@ -70,13 +72,16 @@ where
     }
 
     // Insert the job
-    let _result = sqlx::query("INSERT INTO poke (name, cron, detail, created) VALUES (?, ?, ?, ?)")
-        .bind(&poke.name)
-        .bind(&poke.cron)
-        .bind(&poke.detail)
-        .bind(&poke.created)
-        .execute(&mut *tx)
-        .await?;
+    let _result = sqlx::query(
+        "INSERT INTO poke (name, cron, detail, sound_enabled, created) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind(&poke.name)
+    .bind(&poke.cron)
+    .bind(&poke.detail)
+    .bind(&poke.sound_enabled)
+    .bind(&poke.created)
+    .execute(&mut *tx)
+    .await?;
 
     // Set up notification
     match setup_notification(&poke, sched).await {
@@ -145,4 +150,31 @@ pub async fn remove_poke(pool: &SqlitePool, name: &str) -> Result<(), Box<dyn st
         .await?;
 
     Ok(())
+}
+
+/// Toggle sound on/off for an existing job
+pub async fn toggle_poke_sound(
+    pool: &SqlitePool,
+    name: &str,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    // Check if the job exists first
+    let existing = sqlx::query("SELECT sound_enabled FROM poke WHERE name = ?")
+        .bind(name)
+        .fetch_optional(pool)
+        .await?;
+
+    let current_sound = existing.ok_or_else(|| format!("No job found with name '{}'", name))?;
+    let current_sound_enabled: bool = current_sound.get(0);
+
+    // Toggle the sound setting
+    let new_sound_enabled = !current_sound_enabled;
+
+    // Update the job
+    let _result = sqlx::query("UPDATE poke SET sound_enabled = ? WHERE name = ?")
+        .bind(new_sound_enabled)
+        .bind(name)
+        .execute(pool)
+        .await?;
+
+    Ok(new_sound_enabled)
 }

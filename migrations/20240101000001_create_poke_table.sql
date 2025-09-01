@@ -3,5 +3,6 @@ CREATE TABLE IF NOT EXISTS poke (
     name TEXT NOT NULL UNIQUE,
     cron TEXT NOT NULL,
     detail TEXT,
+    sound_enabled BOOLEAN NOT NULL DEFAULT 0,
     created TIMESTAMP NOT NULL
 );

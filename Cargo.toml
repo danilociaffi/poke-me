@@ -3,9 +3,16 @@ name = "poke_me"
 version = "0.1.0"
 edition = "2021"
 
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
 [dependencies]
 notify-rust = "4.11.7"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "signal"] }
 tokio-cron-scheduler = "0.14.0"
 sqlx = { version = "0.6", features = ["runtime-tokio-rustls", "sqlite", "chrono", "migrate"] }
 clap = { version = "4.5.46", features = ["derive"] }
