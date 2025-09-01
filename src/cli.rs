@@ -1,6 +1,7 @@
 use crate::{
     database::{add_poke, get_poke_by_name, list_pokes, remove_poke, search_pokes_by_name},
     display::{display_job_detail, display_jobs},
+    service::stop_service,
 };
 use clap::{Parser, Subcommand};
 
@@ -53,6 +54,8 @@ pub enum Commands {
         /// Name of the job to remove
         name: String,
     },
+    /// Stop the running notification service
+    Stop,
 }
 
 pub async fn handle_commands(
@@ -92,6 +95,10 @@ pub async fn handle_commands(
         },
         Commands::Remove { name } => match remove_poke(pool, &name).await {
             Ok(()) => println!("Job '{}' removed successfully", name),
+            Err(err) => println!("ERROR: {}", err),
+        },
+        Commands::Stop => match stop_service() {
+            Ok(()) => println!("Service stopped successfully"),
             Err(err) => println!("ERROR: {}", err),
         },
         Commands::Service { .. } => {
