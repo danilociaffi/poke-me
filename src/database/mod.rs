@@ -113,3 +113,14 @@ pub async fn get_poke_by_name(
 
     poke.ok_or_else(|| format!("No job found with name: {}", name).into())
 }
+
+pub async fn search_pokes_by_name(
+    pool: &SqlitePool,
+    search_term: &str,
+) -> Result<Vec<Poke>, sqlx::Error> {
+    let search_pattern = format!("%{}%", search_term);
+    sqlx::query_as::<_, Poke>("SELECT * FROM poke WHERE name LIKE ? ORDER BY created DESC")
+        .bind(search_pattern)
+        .fetch_all(pool)
+        .await
+}
