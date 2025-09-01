@@ -36,16 +36,20 @@ sudo cp target/release/poke_me /usr/local/bin/
 ## Usage
 
 ```bash
+A service to setup recurring notifications
+
 Usage: poke_me <COMMAND>
 
 Commands:
-  service  Start the background notification service
-  add      Add a new scheduled notification job
-  list     List all scheduled notification jobs
-  detail   Show detailed information for a specific job by exact name
-  search   Search for jobs by name pattern (partial matching)
-  remove   Remove a scheduled job by name
-  help     Print this message or the help of the given subcommand(s)
+  service       Start the background notification service
+  add           Add a new scheduled notification job
+  list          List all scheduled notification jobs
+  detail        Show detailed information for a specific job by exact name
+  search        Search for jobs by name pattern (partial matching)
+  remove        Remove a scheduled job by name
+  toggle-sound  Toggle sound on/off for an existing job
+  stop          Stop the running notification service
+  help          Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help
@@ -58,7 +62,7 @@ Options:
 
 ```bash
 # Add eye rest reminder every 20 minutes
-poke_me add "eye_rest" "0 */20 * * * *" "Take a 20-second break to rest your eyes"
+poke_me add "Rest your eyes" "0 */20 * * * *" "Take a 20-second break to rest your eyes" --sound # Sound is off by default
 
 # List all scheduled jobs
 poke_me list
