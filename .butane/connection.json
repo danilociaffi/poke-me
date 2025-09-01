@@ -1,4 +1,0 @@
-{
-  "backend_name": "sqlite",
-  "conn_str": "poke.db"
-}
