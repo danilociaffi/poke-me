@@ -124,3 +124,25 @@ pub async fn search_pokes_by_name(
         .fetch_all(pool)
         .await
 }
+
+/// Remove a job by name
+pub async fn remove_poke(pool: &SqlitePool, name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    // Check if the job exists first
+    let existing = sqlx::query("SELECT COUNT(*) FROM poke WHERE name = ?")
+        .bind(name)
+        .fetch_one(pool)
+        .await?;
+
+    let count: i64 = existing.get(0);
+    if count == 0 {
+        return Err(format!("No job found with name '{}'", name).into());
+    }
+
+    // Delete the job
+    let _result = sqlx::query("DELETE FROM poke WHERE name = ?")
+        .bind(name)
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
