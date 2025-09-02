@@ -2,6 +2,7 @@ use chrono::{NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use std::str::FromStr;
+use tokio_cron_scheduler::Job;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Poke {
@@ -23,9 +24,9 @@ impl Poke {
         let cron_str = cron.into();
         let name_str = name.into();
 
-        // Validate cron expression
+        // Validate cron expression using tokio-cron-scheduler's format (6 fields: second, minute, hour, day, month, weekday)
         if !is_valid_cron(&cron_str) {
-            return Err(format!("Invalid cron expression: {}", cron_str));
+            return Err(format!("Invalid cron expression: {}. Expected format: 'second minute hour day month weekday'", cron_str));
         }
 
         Ok(Poke {
@@ -40,5 +41,7 @@ impl Poke {
 }
 
 fn is_valid_cron(cron: &str) -> bool {
-    cron::Schedule::from_str(cron).is_ok()
+    // Use tokio_cron_scheduler's Job::new to validate the cron expression
+    // This ensures compatibility with the scheduler that will actually use it
+    tokio_cron_scheduler::Job::new(cron, |_, _| {}).is_ok()
 }
