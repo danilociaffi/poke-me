@@ -24,6 +24,35 @@ cargo install --path .
 sudo cp target/release/poke_me /usr/local/bin/
 ```
 
+### Systemd Service Installation (Linux)
+
+For automatic startup and persistent background operation, you can install `poke_me` as a systemd service:
+
+```bash
+# Build and install the binary
+cargo install --path .
+
+# Verify installation
+which poke_me
+# Should output: /home/username/.cargo/bin/poke_me
+
+# Run the automated setup script
+cd scripts
+./setup-systemd.sh
+```
+
+**Note:** Copy and edit the template file for more fine tuned configurations.
+
+### Database separation
+The systemd service uses a separate database location:
+- **Systemd service**: `~/.local/share/poke_me/poke.db`
+- **Development mode** (`cargo run`): `./poke.db` (local directory)
+
+This allows you to:
+- Use `cargo run` for development with local database
+- Use `poke_me` commands with the systemd service database
+- Keep development and production data separate
+
 ## Usage
 
 ```bash
@@ -93,48 +122,4 @@ The service uses 6-field cron expressions:
 - `0 30 12 * * 1-5` - Weekdays at 12:30 PM
 - `0 0 0 1 * *` - First day of every month at midnight
 - `0 */20 * * * *` - Every 20 minutes
-
-### Service Mode
-
-Run as a background service to continuously handle notifications:
-
-```bash
-# Foreground mode (with Ctrl+C to stop)
-poke_me service
-
-# Daemon mode (runs in background)
-poke_me service --daemon
-
-# Stop the service from another terminal
-poke_me stop
-```
-
-## Systemd Service Installation (Linux)
-
-For automatic startup and persistent background operation, you can install `poke_me` as a systemd service:
-
-```bash
-# Build and install the binary
-cargo install --path .
-
-# Verify installation
-which poke_me
-# Should output: /home/username/.cargo/bin/poke_me
-
-# Run the automated setup script
-cd scripts
-./setup-systemd.sh
-```
-
-**Note:** Copy and edit the template file for more fine tuned configurations.
-
-### Database separation
-The systemd service uses a separate database location:
-- **Systemd service**: `~/.local/share/poke_me/poke.db`
-- **Development mode** (`cargo run`): `./poke.db` (local directory)
-
-This allows you to:
-- Use `cargo run` for development with local database
-- Use `poke_me` commands with the systemd service database
-- Keep development and production data separate
 
