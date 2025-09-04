@@ -108,3 +108,33 @@ poke_me service --daemon
 # Stop the service from another terminal
 poke_me stop
 ```
+
+## Systemd Service Installation (Linux)
+
+For automatic startup and persistent background operation, you can install `poke_me` as a systemd service:
+
+```bash
+# Build and install the binary
+cargo install --path .
+
+# Verify installation
+which poke_me
+# Should output: /home/username/.cargo/bin/poke_me
+
+# Run the automated setup script
+cd scripts
+./setup-systemd.sh
+```
+
+**Note:** Copy and edit the template file for more fine tuned configurations.
+
+### Database separation
+The systemd service uses a separate database location:
+- **Systemd service**: `~/.local/share/poke_me/poke.db`
+- **Development mode** (`cargo run`): `./poke.db` (local directory)
+
+This allows you to:
+- Use `cargo run` for development with local database
+- Use `poke_me` commands with the systemd service database
+- Keep development and production data separate
+

@@ -1,0 +1,18 @@
+[Unit]
+Description=Poke Me Notification Service
+After=network.target
+
+[Service]
+Type=simple
+User=USERNAME
+Group=USERNAME
+WorkingDirectory=HOME_DIR
+ExecStart=BINARY_PATH service
+Restart=always
+RestartSec=5
+Environment=DISPLAY=:0
+Environment=XDG_RUNTIME_DIR=/run/user/USER_ID
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=multi-user.target
