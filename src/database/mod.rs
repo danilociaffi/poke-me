@@ -5,17 +5,32 @@ use sqlx::{sqlite::SqlitePool, Row};
 use std::path::Path;
 use tokio_cron_scheduler::JobScheduler;
 
+/// Check if we're running in development mode (cargo run) vs production mode (installed binary)
+fn is_development_mode() -> bool {
+    // Check if the executable path contains "target" (indicating cargo run)
+    if let Ok(exe_path) = std::env::current_exe() {
+        exe_path.to_string_lossy().contains("target")
+    } else {
+        false
+    }
+}
+
 pub async fn establish_connection() -> Result<SqlitePool, sqlx::Error> {
-    // Try to find the database in the current working directory first
-    // If not found, try to find it relative to the executable location
-    let db_path = if Path::new("poke.db").exists() {
+    // Determine database path based on how the binary is being run
+    let db_path = if is_development_mode() {
+        // Development mode (cargo run): use current directory
         "poke.db".to_string()
     } else {
-        // Get the executable path and look for the database in the same directory
-        let exe_path =
-            std::env::current_exe().unwrap_or_else(|_| Path::new("poke_me").to_path_buf());
-        let exe_dir = exe_path.parent().unwrap_or_else(|| Path::new("."));
-        exe_dir.join("poke.db").to_string_lossy().to_string()
+        // Production mode (installed binary): use systemd service location
+        let home_dir = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+        let db_dir = Path::new(&home_dir).join(".local/share/poke_me");
+
+        // Create the directory if it doesn't exist
+        if !db_dir.exists() {
+            std::fs::create_dir_all(&db_dir).expect("Failed to create poke_me data directory");
+        }
+
+        db_dir.join("poke.db").to_string_lossy().to_string()
     };
 
     // Create database file if it doesn't exist
