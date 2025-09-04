@@ -4,7 +4,7 @@ use crate::{
         toggle_poke_sound,
     },
     display::{display_job_detail, display_jobs},
-    service::stop_service,
+    service::{signal_refresh, stop_service},
 };
 use clap::{Parser, Subcommand};
 
@@ -67,6 +67,8 @@ pub enum Commands {
     },
     /// Stop the running notification service
     Stop,
+    /// Refresh the service to pick up any job changes
+    Refresh,
 }
 
 pub async fn handle_commands(
@@ -83,7 +85,13 @@ pub async fn handle_commands(
             let sched = tokio_cron_scheduler::JobScheduler::new().await?;
             let sound_enabled = sound;
             match add_poke(pool, name, cron, detail, sound_enabled, &sched).await {
-                Ok(()) => println!("Job added successfully"),
+                Ok(()) => {
+                    println!("Job added successfully");
+                    // Signal service to refresh jobs
+                    if let Err(err) = signal_refresh() {
+                        println!("Note: Service refresh failed: {}. You may need to restart the service.", err);
+                    }
+                }
                 Err(err) => println!("ERROR: {}", err),
             }
         }
@@ -110,19 +118,37 @@ pub async fn handle_commands(
             }
             Err(err) => println!("ERROR: {}", err),
         },
-        Commands::Remove { name } => match remove_poke(pool, &name).await {
-            Ok(()) => println!("Job '{}' removed successfully", name),
-            Err(err) => println!("ERROR: {}", err),
-        },
-        Commands::ToggleSound { name } => match toggle_poke_sound(pool, &name).await {
-            Ok(sound_enabled) => {
-                let status = if sound_enabled { "ON" } else { "OFF" };
-                println!("Sound toggled to {} for job '{}'", status, name);
+        Commands::Remove { name } => {
+            match remove_poke(pool, &name).await {
+                Ok(()) => {
+                    println!("Job '{}' removed successfully", name);
+                    // Signal service to refresh jobs
+                    if let Err(err) = signal_refresh() {
+                        println!("Note: Service refresh failed: {}. You may need to restart the service.", err);
+                    }
+                }
+                Err(err) => println!("ERROR: {}", err),
             }
-            Err(err) => println!("ERROR: {}", err),
-        },
+        }
+        Commands::ToggleSound { name } => {
+            match toggle_poke_sound(pool, &name).await {
+                Ok(sound_enabled) => {
+                    let status = if sound_enabled { "ON" } else { "OFF" };
+                    println!("Sound toggled to {} for job '{}'", status, name);
+                    // Signal service to refresh jobs
+                    if let Err(err) = signal_refresh() {
+                        println!("Note: Service refresh failed: {}. You may need to restart the service.", err);
+                    }
+                }
+                Err(err) => println!("ERROR: {}", err),
+            }
+        }
         Commands::Stop => match stop_service() {
             Ok(()) => println!("Service stopped successfully"),
+            Err(err) => println!("ERROR: {}", err),
+        },
+        Commands::Refresh => match signal_refresh() {
+            Ok(()) => println!("Service refresh signal sent successfully"),
             Err(err) => println!("ERROR: {}", err),
         },
         Commands::Service { .. } => {

@@ -9,6 +9,7 @@ use tokio_cron_scheduler::JobScheduler;
 
 const PID_FILE: &str = "/tmp/poke_me.pid";
 const CONTROL_FILE: &str = "/tmp/poke_me.control";
+const REFRESH_FILE: &str = "/tmp/poke_me.refresh";
 
 /// Run the background notification service
 pub async fn run_service(daemon: bool) -> Result<(), Box<dyn std::error::Error>> {
@@ -26,18 +27,10 @@ pub async fn run_service(daemon: bool) -> Result<(), Box<dyn std::error::Error>>
     let pool = establish_connection().await?;
 
     // Create and start the job scheduler
-    let sched = JobScheduler::new().await?;
+    let mut sched = JobScheduler::new().await?;
 
     // Load existing jobs from database and set them up
-    let existing_jobs = list_pokes(&pool, None).await?;
-    println!("Found {} existing scheduled jobs", existing_jobs.len());
-
-    for poke in &existing_jobs {
-        match setup_notification(&poke, &sched).await {
-            Ok(()) => println!("Loaded job: {}", poke.name),
-            Err(err) => eprintln!("Failed to load job {}: {}", poke.name, err),
-        }
-    }
+    load_jobs_into_scheduler(&pool, &mut sched).await?;
 
     // Start the scheduler
     sched.start().await?;
@@ -49,7 +42,7 @@ pub async fn run_service(daemon: bool) -> Result<(), Box<dyn std::error::Error>>
         .summary("Service Started")
         .body(&format!(
             "Notification service running with {} jobs",
-            existing_jobs.len()
+            list_pokes(&pool, None).await?.len()
         ))
         .icon("clock")
         .show();
@@ -73,6 +66,19 @@ pub async fn run_service(daemon: bool) -> Result<(), Box<dyn std::error::Error>>
             break;
         }
 
+        // Check if we should refresh jobs
+        if Path::new(REFRESH_FILE).exists() {
+            println!("Refresh file detected, reloading jobs...");
+            fs::remove_file(REFRESH_FILE)?;
+
+            // Clear existing jobs and reload
+            sched.shutdown().await?;
+            sched = JobScheduler::new().await?;
+            load_jobs_into_scheduler(&pool, &mut sched).await?;
+            sched.start().await?;
+            println!("Jobs refreshed successfully");
+        }
+
         // Optional: periodic health check
         if let Err(err) = pool.acquire().await {
             eprintln!("Database connection error: {}", err);
@@ -81,6 +87,37 @@ pub async fn run_service(daemon: bool) -> Result<(), Box<dyn std::error::Error>>
 
     // Cleanup
     cleanup_service_files()?;
+    Ok(())
+}
+
+/// Load jobs from database into the scheduler
+async fn load_jobs_into_scheduler(
+    pool: &sqlx::SqlitePool,
+    sched: &mut JobScheduler,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Load existing jobs from database and set them up
+    let existing_jobs = list_pokes(pool, None).await?;
+    println!("Found {} existing scheduled jobs", existing_jobs.len());
+
+    for poke in &existing_jobs {
+        match setup_notification(&poke, sched).await {
+            Ok(()) => println!("Loaded job: {}", poke.name),
+            Err(err) => eprintln!("Failed to load job {}: {}", poke.name, err),
+        }
+    }
+
+    Ok(())
+}
+
+/// Signal the service to refresh its jobs
+pub fn signal_refresh() -> Result<(), Box<dyn std::error::Error>> {
+    if !Path::new(PID_FILE).exists() {
+        return Err("Service is not running".into());
+    }
+
+    // Create refresh file to signal the service
+    fs::write(REFRESH_FILE, "refresh")?;
+    println!("Refresh signal sent to service");
     Ok(())
 }
 
@@ -135,6 +172,9 @@ fn cleanup_service_files() -> Result<(), Box<dyn std::error::Error>> {
     }
     if Path::new(CONTROL_FILE).exists() {
         fs::remove_file(CONTROL_FILE)?;
+    }
+    if Path::new(REFRESH_FILE).exists() {
+        fs::remove_file(REFRESH_FILE)?;
     }
     Ok(())
 }

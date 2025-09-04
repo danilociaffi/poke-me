@@ -6,13 +6,22 @@ use std::path::Path;
 use tokio_cron_scheduler::JobScheduler;
 
 pub async fn establish_connection() -> Result<SqlitePool, sqlx::Error> {
-    // Ensure database directory exists
-    let db_path = "poke.db";
+    // Try to find the database in the current working directory first
+    // If not found, try to find it relative to the executable location
+    let db_path = if Path::new("poke.db").exists() {
+        "poke.db".to_string()
+    } else {
+        // Get the executable path and look for the database in the same directory
+        let exe_path =
+            std::env::current_exe().unwrap_or_else(|_| Path::new("poke_me").to_path_buf());
+        let exe_dir = exe_path.parent().unwrap_or_else(|| Path::new("."));
+        exe_dir.join("poke.db").to_string_lossy().to_string()
+    };
 
     // Create database file if it doesn't exist
-    if !Path::new(db_path).exists() {
+    if !Path::new(&db_path).exists() {
         // Create empty database file
-        std::fs::File::create(db_path).expect("Failed to create database file");
+        std::fs::File::create(&db_path).expect("Failed to create database file");
     }
 
     // Connect to the database

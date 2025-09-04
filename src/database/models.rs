@@ -1,8 +1,6 @@
 use chrono::{NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use std::str::FromStr;
-use tokio_cron_scheduler::Job;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Poke {
