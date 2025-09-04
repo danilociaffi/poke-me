@@ -10,6 +10,12 @@ use service::run_service;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Initialize logger
+    env_logger::Builder::from_default_env()
+        .filter_level(log::LevelFilter::Info)
+        .filter_module("sqlx", log::LevelFilter::Warn) // Only show sqlx warnings/errors
+        .init();
+
     let cli = Cli::parse();
 
     match cli.command {

@@ -2,6 +2,7 @@ use crate::{
     database::{establish_connection, list_pokes},
     notification::setup_notification,
 };
+use log::{error, info};
 use notify_rust::Notification;
 use std::fs;
 use std::path::Path;
@@ -13,12 +14,12 @@ const REFRESH_FILE: &str = "/tmp/poke_me.refresh";
 
 /// Run the background notification service
 pub async fn run_service(daemon: bool) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Starting Poke Me notification service...");
+    info!("Starting Poke Me notification service...");
 
     // Create PID file
     let pid = std::process::id();
     fs::write(PID_FILE, pid.to_string())?;
-    println!("Service PID: {}", pid);
+    info!("Service PID: {}", pid);
 
     // Create control file for graceful shutdown
     fs::write(CONTROL_FILE, "running")?;
@@ -34,7 +35,7 @@ pub async fn run_service(daemon: bool) -> Result<(), Box<dyn std::error::Error>>
 
     // Start the scheduler
     sched.start().await?;
-    println!("Scheduler started successfully");
+    info!("Scheduler started successfully");
 
     // Show initial notification
     let _ = Notification::new()
@@ -48,12 +49,10 @@ pub async fn run_service(daemon: bool) -> Result<(), Box<dyn std::error::Error>>
         .show();
 
     if daemon {
-        println!("Running in daemon mode. Service will continue in background.");
-        println!("Use 'poke_me stop' to stop the service.");
+        info!("Running in daemon mode. Service will continue in background.");
+        info!("Use 'poke_me stop' to stop the service.");
     } else {
-        println!(
-            "Service running. Press Ctrl+C to stop or use 'poke_me stop' from another terminal."
-        );
+        info!("Service running. Press Ctrl+C to stop or use 'poke_me stop' from another terminal.");
     }
 
     // Keep the service running
@@ -62,13 +61,13 @@ pub async fn run_service(daemon: bool) -> Result<(), Box<dyn std::error::Error>>
 
         // Check if we should stop
         if !Path::new(CONTROL_FILE).exists() {
-            println!("Control file removed, shutting down gracefully...");
+            info!("Control file removed, shutting down gracefully...");
             break;
         }
 
         // Check if we should refresh jobs
         if Path::new(REFRESH_FILE).exists() {
-            println!("Refresh file detected, reloading jobs...");
+            info!("Refresh file detected, reloading jobs...");
             fs::remove_file(REFRESH_FILE)?;
 
             // Clear existing jobs and reload
@@ -76,12 +75,12 @@ pub async fn run_service(daemon: bool) -> Result<(), Box<dyn std::error::Error>>
             sched = JobScheduler::new().await?;
             load_jobs_into_scheduler(&pool, &mut sched).await?;
             sched.start().await?;
-            println!("Jobs refreshed successfully");
+            info!("Jobs refreshed successfully");
         }
 
         // Optional: periodic health check
         if let Err(err) = pool.acquire().await {
-            eprintln!("Database connection error: {}", err);
+            error!("Database connection error: {}", err);
         }
     }
 
@@ -97,12 +96,12 @@ async fn load_jobs_into_scheduler(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load existing jobs from database and set them up
     let existing_jobs = list_pokes(pool, None).await?;
-    println!("Found {} existing scheduled jobs", existing_jobs.len());
+    info!("Found {} existing scheduled jobs", existing_jobs.len());
 
     for poke in &existing_jobs {
         match setup_notification(&poke, sched).await {
-            Ok(()) => println!("Loaded job: {}", poke.name),
-            Err(err) => eprintln!("Failed to load job {}: {}", poke.name, err),
+            Ok(()) => info!("Loaded job: {}", poke.name),
+            Err(err) => error!("Failed to load job {}: {}", poke.name, err),
         }
     }
 
